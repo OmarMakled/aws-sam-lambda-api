@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda Functions with API Gateway
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+
+  AppApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: app-api
+      StageName: dev
+      EndpointConfiguration:
+        Type: REGIONAL
+      Cors:
+        AllowMethods: "'OPTIONS,GET,POST,PUT,DELETE,PATCH'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowOrigin: "'*'"
+
+  SharedUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: app-layer
+      Description: Common dependencies
+      ContentUri: layers/sam-template-todos/
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  ListTodosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/
+      Handler: ListTodos.handler
+      Layers:
+        - !Ref SharedUtilsLayer
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AppApiGateway
+            Path: /todos
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: "Base URL of the API"
+    Value: !Sub "https://${AppApiGateway}.execute-api.${AWS::Region}.amazonaws.com/dev/"
